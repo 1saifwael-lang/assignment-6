@@ -1,0 +1,130 @@
+ create post
+exports.createPost = async (req, res) => {
+  const post = new Post(req.body);
+  await post.save();
+  res.status(201).json(post);
+};
+
+*****delete post 
+exports.deletePost = async (req, res) => {
+  const { postId } = req.params;
+  const { userId } = req.body;
+
+  const post = await Post.findByPk(postId);
+  if (!post || post.userId !== userId) {
+    return res.status(403).json({ message: "Not allowed" });
+  }
+
+  await post.destroy();
+  res.json({ message: "Post deleted" });
+};
+
+********post user and comments 
+exports.postsDetails = async (req, res) => {
+  const posts = await Post.findAll({
+    attributes: ["id", "title"],
+    include: [
+      {
+        model: User,
+        attributes: ["id", "name"],
+      },
+      {
+        model: Comment,
+        attributes: ["id", "content"],
+      },
+    ],
+  });
+  res.json(posts);
+};
+
+****************************post count
+exports.commentCount = async (req, res) => {
+  const posts = await Post.findAll({
+    include: [{ model: Comment, attributes: [] }],
+    attributes: [
+      "id",
+      "title",
+      [sequelize.fn("COUNT", sequelize.col("Comments.id")), "commentsCount"],
+    ],
+    group: ["Post.id"],
+  });
+
+  res.json(posts);
+};
+
+**********************************************-------------------c--coment api
+---bulk coment
+exports.bulkCreate = async (req, res) => {
+  const comments = await Comment.bulkCreate(req.body);
+  res.status(201).json(comments);
+};
+
+
+******update comment 
+
+exports.updateComment = async (req, res) => {
+  const { commentId } = req.params;
+  const { userId, content } = req.body;
+
+  const comment = await Comment.findByPk(commentId);
+  if (!comment || comment.userId !== userId) {
+    return res.status(403).json({ message: "Not allowed" });
+  }
+
+  comment.content = content;
+  await comment.save();
+  res.json(comment);
+};
+
+
+****find 
+
+exports.findOrCreate = async (req, res) => {
+  const { postId, userId, content } = req.body;
+
+  const [comment] = await Comment.findOrCreate({
+    where: { postId, userId, content },
+  });
+
+  res.json(comment);
+};
+
+************search exports.search = async (req, res) => {
+  const { word } = req.query;
+
+  const result = await Comment.findAndCountAll({
+    where: {
+      content: {
+        [Op.like]: `%${word}%`,
+      },
+    },
+  });
+
+  res.json(result);
+};
+
+
+-----the 3 most recent comments
+exports.newest = async (req, res) => {
+  const comments = await Comment.findAll({
+    where: { postId: req.params.postId },
+    order: [["createdAt", "DESC"]],
+    limit: 3,
+  });
+  res.json(comments);
+};
+
+
+***Get Specific Comment By PK with User and Post Information.
+
+exports.commentDetails = async (req, res) => {
+  const comment = await Comment.findByPk(req.params.id, {
+    include: [User, Post],
+  });
+  res.json(comment);
+};
+
+
+
+
+bouns
